@@ -1,0 +1,10 @@
+{
+  "name": "Dynamics 365",
+  "version": "1.0.0.4",
+  "description": "",
+  "icon": "/logo.png",
+  "extend_icon":"./extend_icon.png",
+  "permissions": ["call.listen"],
+  "plugin_type": "background",
+  "minimum_SDK_version": "1.0.0.4"
+}
