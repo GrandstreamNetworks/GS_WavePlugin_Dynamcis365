@@ -1,0 +1,14 @@
+{
+  "name": "Dynamics 365",
+  "version": "1.0.3.1",
+  "description": "Dynamics 365 is a sales productivity-oriented customer relationship management system with highly customizable business processes. It's integrated with Wave application and allows users to easily create and maintain customer data clearly, enhancing and improving the sales ability, marketing method, and customer service of the company.",
+  "icon": "/logo.png",
+  "extend_icon": "./extend_icon.png",
+  "permissions": [
+    "call.listen",
+    "custom.listen",
+    "contact.manage"
+  ],
+  "plugin_type": "background",
+  "minimum_SDK_version": "1.0.4"
+}

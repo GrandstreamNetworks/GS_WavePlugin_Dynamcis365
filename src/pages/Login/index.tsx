@@ -1,142 +1,268 @@
-import React, { useEffect, useState } from "react";
-import { Form, Input, Button, Checkbox, Image } from 'antd';
-import { connect, Dispatch, Loading, useIntl, history } from 'umi';
-import { get } from 'lodash'
+import DownIcon from '@/asset/login/down.svg';
 import { Footer } from '@/components';
-import { CLIENT_CONFIG, REQUEST_CODE, SESSION_STORAGE_KEY } from '@/constant';
-import UserIcon from '@/asset/login/account-line.svg';
-import styles from './index.less';
+import { AUTO_CREATE_CONFIG_DEF, CLIENT_CONFIG, NOTIFICATION_CONFIG_DEF, SESSION_STORAGE_KEY, UPLOAD_CALL_CONFIG_DEF } from '@/constant';
 import { setToken } from '@/utils/utils';
-
+import { Button, Form, Image, Input } from 'antd';
+import { get } from 'lodash';
+import React, { useEffect, useState } from 'react';
+import { Dispatch, Loading, connect, history, useIntl } from 'umi';
+import Domain from '../../asset/login/service-line.svg';
+import styles from './index.less';
 
 interface LoginProps {
-    login: (obj: LooseObject) => void
-    getUser: () => Promise<LooseObject>
-    saveUserConfig: (obj: LooseObject) => void
-    save: (obj: LooseObject) => void
-    loginLoading: boolean | undefined
+    login: (obj: LooseObject) => void;
+    getUser: (obj: LooseObject) => Promise<LooseObject>;
+    saveUserConfig: (obj: LooseObject) => void;
+    token: (obj: LooseObject) => Promise<LooseObject>
+    loginLoading: boolean | undefined;
 }
 
-const Login: React.FC<LoginProps> = ({ login, getUser, saveUserConfig, save, loginLoading = false }) => {
+const Login: React.FC<LoginProps> = ({
+    login,
+    getUser,
+    saveUserConfig,
+    token,
+    loginLoading = false,
+}) => {
     const [form] = Form.useForm();
     const [errorMessage, setErrorMessage] = useState<string>('');
+    const [domains, setDomains] = useState<string[]>([]);
+    const [domainShow, setDomainShow] = useState<boolean>(false);
     const { formatMessage } = useIntl();
 
     const onfocus = () => {
         setErrorMessage('');
-    }
+    };
+
+    const closeList = () => {
+        setDomainShow(false);
+    };
+
+    const showDomainList = (event: { stopPropagation: () => void }) => {
+        setDomainShow(true);
+        event.stopPropagation();
+    };
+    const setDomain = (item: string) => {
+        form.setFieldsValue({ domain: item });
+        closeList();
+    };
 
     const getUserInfo = (userConfig: any) => {
-        console.log("getUserInfo")
-        getUser().then(res => {
-            if (res?.code === REQUEST_CODE.connectError) {
-                setErrorMessage('error.network');
-                return;
-            }
-            if (res?.status || res?.error) {
-                setErrorMessage('error.message');
+        console.log('getUserInfo');
+        getUser({
+            userRefreshToken: userConfig.userTokenInfo?.refresh_token,
+            CRMRefreshToken: userConfig.CRMTokenInfo?.refresh_token,
+        }).then((res) => {
+            if (res.error) {
+                setErrorMessage(res.error);
                 return;
             }
             if (res.id) {
-                const config = {
+                const newConfig = {
                     ...userConfig,
+                    autoLogin: true,
                     uploadCall: userConfig.uploadCall ?? true,
-                    showConfig: userConfig.showConfig ?? {
-                        first: 'Name',
-                        second: 'Phone',
-                        third: 'None',
-                        forth: 'None',
-                        fifth: 'None',
-                    }
-                }
-                save({
-                    uploadCall: userConfig.uploadCall ?? true,
-                    showConfig: userConfig.showConfig ?? {
-                        first: 'Name',
-                        second: 'Phone',
-                        third: 'None',
-                        forth: 'None',
-                        fifth: 'None',
-                    }
-                })
-                saveUserConfig(config);
-                history.replace('home')
+                    notification: userConfig.notification ?? true,
+                    autoCreate: userConfig.autoCreate ?? false,
+                    autoCreateConfig: userConfig.autoCreateConfig ?? AUTO_CREATE_CONFIG_DEF,
+                    uploadCallConfig: userConfig.uploadCallConfig ?? UPLOAD_CALL_CONFIG_DEF,
+                    notificationConfig: userConfig.notificationConfig ?? NOTIFICATION_CONFIG_DEF,
+                };
+                saveUserConfig(newConfig);
+                history.replace('home');
                 return;
             }
             console.log(res);
-        })
+        });
         console.log(userConfig);
-    }
+    };
 
-    const toLogin = (values: { domain: string }) => {
-        if (!values.domain) {
-            setErrorMessage('error.message');
-            return;
-        }
-        sessionStorage.setItem(SESSION_STORAGE_KEY.domain, values.domain)
-        console.log("login", values);
+    const toLogin = (values: any) => {
+        sessionStorage.setItem(SESSION_STORAGE_KEY.domain, values.domain);
+        sessionStorage.setItem('login', '1');
         login({
             scope: CLIENT_CONFIG.scope,
-            state: SESSION_STORAGE_KEY.userToken
+            state: SESSION_STORAGE_KEY.userTokenInfo,
         });
-    }
+    };
 
     const toLoginHome = () => {
-        const domain = sessionStorage.getItem(SESSION_STORAGE_KEY.domain)
+        const domain = sessionStorage.getItem(SESSION_STORAGE_KEY.domain);
         login({
-            scope: `${domain}/user_impersonation`,
-            state: SESSION_STORAGE_KEY.CRMToken,
+            scope: `${domain}/user_impersonation offline_access`,
+            state: SESSION_STORAGE_KEY.CRMTokenInfo,
         });
-    }
+    };
 
-    const getUserConfig = (login?: boolean) => {
-        console.log("getUserConfig", login);
+    const getUserConfig = () => {
+        console.log('getUserConfig');
         // 获取保存的信息
         // @ts-ignore
-        pluginSDK.userConfig.getUserConfig(function ({ errorCode, data, }: { errorCode: number, data: string }) {
-            console.log(errorCode, data);
+        pluginSDK.userConfig.getUserConfig(function ({ errorCode, data }) {
             if (errorCode === 0 && data) {
                 const userConfig = JSON.parse(data);
-                const domain = userConfig.domain || sessionStorage.getItem(SESSION_STORAGE_KEY.domain);
-                form.setFieldsValue({ domain })
-                if (login) {
-                    getUserInfo({ ...userConfig, domain });
+                console.log(userConfig);
+                const sessionDomain = sessionStorage.getItem(
+                    SESSION_STORAGE_KEY.domain,
+                );
+                let domain = userConfig.domain || [];
+                if (typeof domain === 'string') {
+                    domain = [domain];
+                }
+                if (sessionDomain) {
+                    domain.unshift(sessionDomain);
+                    domain = [...new Set(domain)];
+                }
+                else {
+                    sessionStorage.setItem(SESSION_STORAGE_KEY.domain, domain[0]);
+                }
+                setDomains(domain);
+
+                const loginParams: any = {
+                    domain: domain[0],
+                };
+                form.setFieldsValue(loginParams);
+
+                // 已登录的与预装配置进行对比
+                let sameConfig = true;
+
+                // 有预装配置 走预装配置
+                const preParamObjectStr = sessionStorage.getItem('preParamObject');
+                if (preParamObjectStr) {
+                    const preParamObject = JSON.parse(
+                        sessionStorage.getItem('preParamObject') || '',
+                    );
+                    if (preParamObject) {
+                        const formParams: any = {};
+                        Object.keys(preParamObject).forEach((item) => {
+                            Object.keys(loginParams).forEach((element) => {
+                                if (item.toLowerCase() === element.toLowerCase()) {
+                                    formParams[element] = preParamObject[item];
+                                    if (!sameConfig) {
+                                        return;
+                                    }
+                                    sameConfig = preParamObject[item] === loginParams[item.toLowerCase()];
+                                }
+                            });
+                        });
+                        form.setFieldsValue({ ...formParams });
+                    }
+                }
+
+                const CRMToken = userConfig.CRMTokenInfo;
+                const userToken = userConfig.userTokenInfo;
+
+                const sessionCRMToken = JSON.parse(sessionStorage.getItem(SESSION_STORAGE_KEY.CRMTokenInfo) || '{}');
+                const sessionUserToken = JSON.parse(sessionStorage.getItem(SESSION_STORAGE_KEY.userTokenInfo) || '{}');
+
+                const CRMTokenInfo = sessionCRMToken.access_token ? sessionCRMToken : CRMToken;
+                const userTokenInfo = sessionUserToken.access_token ? sessionUserToken : userToken;
+
+                sessionStorage.setItem(SESSION_STORAGE_KEY.CRMToken, CRMTokenInfo?.access_token);
+                sessionStorage.setItem(SESSION_STORAGE_KEY.userToken, userTokenInfo?.access_token);
+
+                const login = sessionStorage.getItem('login');
+                if ((userConfig.autoLogin || login) && sameConfig) {
+                    getUserInfo({ ...userConfig, CRMTokenInfo, userTokenInfo, domain });
                     return;
                 }
-                domain && toLogin({ domain: userConfig.domain });
-            }
-            if (login) {
-                const domain = sessionStorage.getItem(SESSION_STORAGE_KEY.domain);
-                getUserInfo({ domain });
                 return;
             }
+            else {
+                const loginParams: any = { domain: '' };
+                // 有预装配置 走预装配置
+                const preParamObjectStr = sessionStorage.getItem('preParamObject');
+                if (preParamObjectStr) {
+                    const preParamObject = JSON.parse(preParamObjectStr);
+                    if (preParamObject) {
+                        Object.keys(preParamObject).forEach((item) => {
+                            Object.keys(loginParams).forEach((element) => {
+                                if (item.toLowerCase() === element.toLowerCase()) {
+                                    loginParams[element] = preParamObject[item];
+                                }
+                            });
+                        });
+                        form.setFieldsValue({ ...loginParams });
+                    }
+                }
+
+                const CRMTokenInfo = JSON.parse(sessionStorage.getItem(SESSION_STORAGE_KEY.CRMTokenInfo) || '{}');
+                const userTokenInfo = JSON.parse(sessionStorage.getItem(SESSION_STORAGE_KEY.userTokenInfo) || '{}');
+
+                sessionStorage.setItem(SESSION_STORAGE_KEY.CRMToken, CRMTokenInfo?.access_token);
+                sessionStorage.setItem(SESSION_STORAGE_KEY.userToken, userTokenInfo?.access_token);
+                const sessionDomain = sessionStorage.getItem(SESSION_STORAGE_KEY.domain) || '';
+
+                sessionDomain && setDomains(item => [...item, sessionDomain]);
+
+                const login = sessionStorage.getItem('login');
+                if (login) {
+                    getUserInfo({ CRMTokenInfo, userTokenInfo, domain: [sessionDomain] });
+                    return;
+                }
+            }
         });
+    };
+
+    const getTokenByCode = (tokenInfo: LooseObject) => {
+        const params = {
+            code: tokenInfo.code,
+            client_id: CLIENT_CONFIG.client_id,
+            redirect_uri: CLIENT_CONFIG.redirect_uri,
+            response_mode: 'fragment',
+            grant_type: 'authorization_code',
+        }
+        return token(params).then((res: LooseObject) => {
+            console.log('token', res);
+            if (res.error) {
+                setErrorMessage(res.error);
+                return;
+            }
+            if (res.access_token) {
+                sessionStorage.setItem(tokenInfo.state, JSON.stringify(res));
+                if (tokenInfo.state === SESSION_STORAGE_KEY.userTokenInfo) {
+                    toLoginHome();
+                }
+                return;
+            }
+            setErrorMessage('login.error');
+        })
     }
 
     const getCode = () => {
-        const token = setToken();
-        console.log("token", token);
-        if (!get(token, 'access_token') && !get(token, 'error')) {
-            getUserConfig();
+        const tokenInfo = setToken();
+        console.log('token', tokenInfo);
+        if (tokenInfo.code) {
+            const sessionDomain = sessionStorage.getItem(SESSION_STORAGE_KEY.domain) || '';
+            setDomain(sessionDomain)
+            getTokenByCode(tokenInfo).then(() => {
+                if (tokenInfo.state === SESSION_STORAGE_KEY.CRMTokenInfo) {
+                    getUserConfig()
+                    return;
+                }
+            })
+            return
+        }
+        if (get(tokenInfo, 'error')) {
             return;
         }
-        if (token.state === SESSION_STORAGE_KEY.userToken) {
-            toLoginHome();
-            return;
-        }
-        getUserConfig(true);
-    }
+        getUserConfig();
+    };
 
     useEffect(() => {
         getCode();
-    }, [])
+    }, []);
 
     return (
         <>
-            {errorMessage && <div className={styles.errorDiv}>
-                <div className={styles.errorMessage}>{formatMessage({ id: errorMessage })}</div>
-            </div>}
-            <div className={styles.homePage}>
+            {errorMessage && (
+                <div className={styles.errorDiv}>
+                    <div className={styles.errorMessage}>
+                        {formatMessage({ id: errorMessage })}
+                    </div>
+                </div>
+            )}
+            <div className={styles.homePage} onClick={closeList} >
                 <Form
                     className={styles.form}
                     form={form}
@@ -145,15 +271,48 @@ const Login: React.FC<LoginProps> = ({ login, getUser, saveUserConfig, save, log
                     onFocus={onfocus}
                 >
                     <div className={styles.formContent}>
-                        <Form.Item
-                            name="domain"
-                            rules={[{
-                                required: true, message: formatMessage({ id: 'login.domain.error' })
-                            }]}
-                        >
-                            <Input placeholder={formatMessage({ id: 'login.domain' })}
-                                prefix={<Image src={UserIcon} preview={false} />} />
-                        </Form.Item>
+                        <div className={styles.clientId}>
+                            <Form.Item
+                                name="domain"
+                                rules={[
+                                    {
+                                        required: true,
+                                        message: formatMessage({ id: 'login.domain.error' }),
+                                    },
+                                ]}
+                            >
+                                <Input
+                                    placeholder={formatMessage({ id: 'login.domain' })}
+                                    prefix={<Image src={Domain} preview={false} />}
+                                    suffix={
+                                        domains.length > 0 && (
+                                            <Image
+                                                src={DownIcon}
+                                                className={styles.downIcon}
+                                                preview={false}
+                                                onClick={showDomainList}
+                                            />
+                                        )
+                                    }
+                                />
+                            </Form.Item>
+                            <div
+                                className={styles.clientIdList}
+                                hidden={!domainShow || domains.length <= 0}
+                            >
+                                <div className={styles.clientIdListContent}>
+                                    {domains.map((item: string) => (
+                                        <div
+                                            key={item}
+                                            onClick={() => setDomain(item)}
+                                            className={styles.clientIdItem}
+                                        >
+                                            {item}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <Form.Item>
                         <Button type="primary" htmlType="submit" loading={loginLoading}>
@@ -161,32 +320,35 @@ const Login: React.FC<LoginProps> = ({ login, getUser, saveUserConfig, save, log
                         </Button>
                     </Form.Item>
                 </Form>
-            </div>
-            <Footer url="https://documentation.grandstream.com/knowledge-base/wave-crm-add-ins/#overview"
-                message={formatMessage({ id: 'login.user.guide' })} />
+            </div >
+            <Footer
+                url="https://documentation.grandstream.com/knowledge-base/wave-crm-add-ins/#overview"
+                message={formatMessage({ id: 'login.user.guide' })}
+            />
         </>
     );
-}
+};
 
 export default connect(
     ({ loading }: { loading: Loading }) => ({
-        loginLoading: loading.effects['global/getUser']
+        loginLoading: loading.effects['global/getUser'] || loading.effects['global/login'] || loading.effects['global/token']
     }),
     (dispatch: Dispatch) => ({
         login: (payload: LooseObject) => dispatch({
             type: 'global/login',
             payload,
         }),
-        getUser: () => dispatch({
+        getUser: (payload: LooseObject) => dispatch({
             type: 'global/getUser',
+            payload
         }),
         saveUserConfig: (payload: LooseObject) => dispatch({
             type: 'global/saveUserConfig',
-            payload
+            payload,
         }),
-        save: (payload: LooseObject) => dispatch({
-            type: 'global/save',
-            payload
-        }),
-    })
+        token: (payload: LooseObject) => dispatch({
+            type: 'global/token',
+            payload,
+        })
+    }),
 )(Login);

@@ -1,13 +1,10 @@
 export const CLIENT_CONFIG = {
     tenant: 'organizations',
     client_id: '3372aeeb-b64a-444e-ad02-8ae467ed513b',
-    response_type: 'token',
+    response_type: 'code',
     redirect_uri: 'http://localhost:3000',
     response_mode: 'fragment',
-    // scope: 'https://org8e033d3e.crm4.dynamics.com',
-    scope: `User.Read`,
-    // prompt: 'consent',
-    nonce: new Date().getTime().toString(),
+    scope: `User.Read offline_access`,
 };
 
 export const REQUEST_CODE = {
@@ -32,9 +29,13 @@ export const REQUEST_CODE = {
  */
 export const SESSION_STORAGE_KEY = {
     userToken: 'userToken',
+    userTokenInfo: 'userTokenInfo',
     CRMToken: 'CRMToken',
+    CRMTokenInfo: 'CRMTokenInfo',
     domain: 'domain',
     apiHost: 'apiHost',
+    clientId: 'clientId',
+    tenant: 'tenant'
 };
 
 /**
@@ -49,12 +50,13 @@ export const EVENT_KEY = {
     initP2PCall: 'onInitP2PCall', // wave发去呼叫
     p2PCallCanceled: 'onP2PCallCanceled', // 未接来电、去电
     initPluginWindowOk: 'onInitPluginWindowOk', //初始化窗口成功
+    onViewCustomerInfos: 'onViewCustomerInfos' // 收到客户信息
 };
 
 export const WAVE_CALL_TYPE = {
-    in: false,
-    out: true,
-    miss: false,
+    in: 'Inbound',
+    out: 'Outbound',
+    miss: 'Missed',
 };
 
 export const DATE_FORMAT = {
@@ -62,6 +64,7 @@ export const DATE_FORMAT = {
     format_2: 'YYYY/MM/DD HH/mm/ss',
     format_3: 'YYYY-MM-DD HH-mm-ss',
     format_4: 'YYYY-MM-DDTHH:mm:ss',
+    format_5: 'HH:mm:ss'
 };
 
 export const MODULES = {
@@ -94,10 +97,50 @@ export const CONFIG_SHOW: CONFIG_SHOW = {
     Description: 'description',
 }
 
-export const NotificationConfig = {
-    first: 'information 1',
-    second: 'information 2',
-    third: 'information 3',
-    forth: 'information 4',
-    fifth: 'information 5'
+
+export const NOTIFICATION_CONFIG_DEF = {
+    first: 'Name',
+    second: 'Phone',
+    third: 'None',
+    forth: 'None',
+    fifth: 'None',
 }
+
+
+export const AUTO_CREATE_CONFIG_DEF = {
+    numberType: 'Wave',
+    direction: 'All',
+    entityType: 'Contact',
+    firstName: 'Wave [Number]',
+    lastName: 'New',
+}
+
+export const UPLOAD_CALL_CONFIG_DEF = {
+    subject: 'Wave PhoneSystem Call',
+    Inbound: '[DateTime]: Incoming call from [Number] [Name] to [Agent]([Duration])',
+    Missed: '[DateTime]: Missed call from [Number] [Name] to [Agent]',
+    Outbound: '[DateTime]: Outgoing call from [Agent] to [Number] [Name] ([Duration])',
+    unansweredOutbound: '[DateTime]: Unanswered outgoing call from [Agent] to [Number] [Name]'
+}
+
+export const CREATION_CONFIG_CONTACT_TYPE = [
+    'Contact', 'Lead', 'Account'
+]
+
+export const CREATION_CONFIG_CONTACT_TYPE_DEF: any = {
+    Contact: 'contact',
+    Lead: 'lead',
+    Account: 'account'
+}
+
+export const NotificationConfig = {
+    first: 'Information 1',
+    second: 'Information 2',
+    third: 'Information 3',
+    forth: 'Information 4',
+    fifth: 'Information 5'
+}
+
+export const MICROSOFT_GRAPH_SERVER_ADDRESS = 'https://graph.microsoft.com';
+
+export const MICROSOFT_LOGIN_SERVER_ADDRESS = 'https://login.microsoftonline.com';

@@ -3,7 +3,7 @@ import { REQUEST_CODE, SESSION_STORAGE_KEY } from '@/constant';
  * request 网络请求工具
  * 更详细的 api 文档: https://github.com/umijs/umi-request
  */
-import { formatMessage, Response } from 'umi'
+import { formatMessage, Response } from 'umi';
 import { extend } from 'umi-request';
 
 /**

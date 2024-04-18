@@ -1,15 +1,12 @@
+import { CLIENT_CONFIG, MICROSOFT_LOGIN_SERVER_ADDRESS, SESSION_STORAGE_KEY } from '@/constant';
+import { checkDomain, getUser, token } from '@/services/global';
 import { stringify } from 'qs';
 import { Effect, Reducer } from 'umi';
-import { getUser } from '@/services/global';
-import { CLIENT_CONFIG, SESSION_STORAGE_KEY } from '@/constant';
 
 export interface GlobalModelState {
     user: LooseObject,
     userConfig: LooseObject
     connectState: string
-    uploadCall: boolean
-    showConfig: LooseObject
-    callState: Map<string, boolean>
 }
 
 export interface GlobalModelType {
@@ -17,10 +14,11 @@ export interface GlobalModelType {
     state: GlobalModelState
     effects: {
         login: Effect
+        token: Effect
+        refreshToken: Effect
         logout: Effect
         getUser: Effect
-        uploadCallChange: Effect
-        saveShowConfig: Effect
+        userConfigChange: Effect
         saveUserConfig: Effect
     }
     reducers: {
@@ -34,9 +32,6 @@ const GlobalModal: GlobalModelType = {
         user: {},
         userConfig: {},
         connectState: 'SUCCESS',
-        uploadCall: true,
-        showConfig: {},
-        callState: new Map(),
     },
 
     effects: {
@@ -56,11 +51,60 @@ const GlobalModal: GlobalModelType = {
                 scope: payload.scope,
                 state: payload.state,
             };
-            window.location.replace(`https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize?${stringify(params)}`);
+            window.location.replace(`${MICROSOFT_LOGIN_SERVER_ADDRESS}/organizations/oauth2/v2.0/authorize?${stringify(params)}`);
         },
 
-        * getUser(_, { call, put }) {
-            const user = yield call(getUser);
+        * token({ payload }, { call }): any {
+            return yield call(token, payload);
+        },
+
+        * refreshToken({ payload }, { call }): any {
+            const res = yield call(token, payload);
+            sessionStorage.setItem(payload.state, res.access_token);
+        },
+
+        * getUser({ payload }, { call, put }): any {
+            let res = yield call(checkDomain);
+            console.log(res);
+            if (res?.status === 403 || res?.status === 401) {
+                const getToken = yield put({
+                    type: 'global/refreshToken',
+                    payload: {
+                        grant_type: "refresh_token",
+                        refresh_token: payload.CRMRefreshToken,
+                        client_id: CLIENT_CONFIG.client_id,
+                        state: SESSION_STORAGE_KEY.CRMToken
+                    }
+                });
+                yield call(() => getToken);
+                res = yield call(checkDomain);
+            }
+            if (res?.code || res?.status || res?.error) {
+                let connectState = res?.code || 'SUCCESS';
+                yield put({
+                    type: 'save',
+                    payload: {
+                        connectState,
+                    },
+                });
+                return {
+                    error: 'error.message'
+                }
+            }
+            let user = yield call(getUser);
+            if (user?.status === 403 || user?.status === 401) {
+                const getToken = yield put({
+                    type: 'global/refreshToken',
+                    payload: {
+                        grant_type: "refresh_token",
+                        refresh_token: payload.userRefreshToken,
+                        client_id: CLIENT_CONFIG.client_id,
+                        state: SESSION_STORAGE_KEY.userToken
+                    }
+                });
+                yield call(() => getToken);
+                user = yield call(getUser);
+            }
             let connectState = user?.code || 'SUCCESS';
             if (user.id) {
                 yield put({
@@ -83,46 +127,31 @@ const GlobalModal: GlobalModelType = {
 
         * logout(_, { put, select }) {
             const { userConfig } = yield select((state: any) => state.global);
-            userConfig.domain = undefined;
-            userConfig.showConfig = undefined;
+            userConfig.autoLogin = false;
             yield put({
                 type: 'saveUserConfig',
                 payload: userConfig
             });
-            sessionStorage.removeItem(SESSION_STORAGE_KEY.domain);
+            sessionStorage.removeItem('login');
             //@ts-ignore
             yield pluginSDK.clearCookie({ origin: 'https://login.microsoftonline.com' }, function () { });
-            window.location.replace(`https://login.microsoftonline.com/${CLIENT_CONFIG.tenant}/oauth2/v2.0/logout?post_logout_redirect_uri=${CLIENT_CONFIG.redirect_uri}`);
+
+            // window.location.replace(`https://login.microsoftonline.com/organizations/oauth2/v2.0/logout?post_logout_redirect_uri=${CLIENT_CONFIG.redirect_uri}`);
+            var url = new URL(window.location.href);
+            url.search = '';
+            url.hash = '#/login';
+            window.location.href = url.toString()
         },
 
-        * uploadCallChange({ payload }, { put, select }) {
+        * userConfigChange({ payload }, { put, select }) {
             const { userConfig } = yield select((state: any) => state.global);
-            userConfig.uploadCall = payload;
+            const newConfig = {
+                ...userConfig,
+                ...payload,
+            }
             yield put({
                 type: 'saveUserConfig',
-                payload: userConfig,
-            })
-            yield put({
-                type: 'save',
-                payload: {
-                    uploadCall: payload,
-                }
-            })
-        },
-
-        * saveShowConfig({ payload }, { put, select }) {
-            const { userConfig } = yield select((state: any) => state.global);
-            console.log(userConfig);
-            userConfig.showConfig = payload;
-            yield put({
-                type: 'saveUserConfig',
-                payload: userConfig,
-            })
-            yield put({
-                type: 'save',
-                payload: {
-                    showConfig: payload,
-                }
+                payload: newConfig,
             })
         },
 

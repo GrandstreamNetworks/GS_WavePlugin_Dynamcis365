@@ -1,6 +1,7 @@
 import { CONFIG_SHOW } from '@/constant';
+import parsePhoneNumberFromString from 'libphonenumber-js';
 import { get } from 'lodash';
-import { parse } from 'qs'
+import { parse } from 'qs';
 
 export function getNotificationBody(body: LooseObject): string {
     let result = `<div style="color: #f0f0f0">`
@@ -43,10 +44,25 @@ export function getValueByConfig<T extends Object, K extends keyof CONFIG_SHOW>(
 export const setToken = () => {
     const search = window.location.search;
     const tokenInfo = parse(decodeURIComponent(search).replace("?", ''));
-    const access_token = tokenInfo?.access_token || '';
-    const state = tokenInfo?.state || 'token';
-    const expires_in = tokenInfo?.expires_in || -1;
-    sessionStorage.setItem(state.toString(), access_token.toString());
-    sessionStorage.setItem(state.toString() + 'expires_in', expires_in.toString());
     return tokenInfo;
+}
+
+export function formatDescription(str: string, params: any) {
+    const regex = /\[([a-zA-Z]+)\]/g;
+    return str?.replace(regex, (match: string, capture) => {
+        return get(params, capture) || ''
+    });
+}
+
+export const formatPhoneNumber = (phone: string) => {
+    if (!phone) return phone;
+    // 使用 libphonenumber 解析电话号码
+    const parsedPhoneNumber = parsePhoneNumberFromString(phone);
+    if (parsedPhoneNumber) {
+        // 获取格式化后的号码
+        return parsedPhoneNumber.formatInternational();
+    } else {
+        // 如果解析失败，返回原始号码
+        return phone;
+    }
 }

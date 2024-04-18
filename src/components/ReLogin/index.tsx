@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { history } from "umi";
 import { SESSION_STORAGE_KEY } from "@/constant";
+import { useEffect, useState } from 'react';
+import { history } from "umi";
 
 const ReLogin = () => {
 
@@ -24,7 +24,7 @@ const ReLogin = () => {
         if (time > 0) {
             setTimeout(() => {
                 setTime(time => time - 1);
-            },1000)
+            }, 1000)
             return;
         }
     }, [time])

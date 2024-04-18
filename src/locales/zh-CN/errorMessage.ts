@@ -7,4 +7,5 @@ export default {
     "access_denied": "Authorization failed",
     "slow_down": "Too frequent requests, retry after 30 seconds",
     "authorization_pending": "Awaiting authorization",
+    "error.version": "The current Wave version is too low. Please upgrade your Wave app."
 }
